@@ -13,7 +13,7 @@ import (
 )
 
 var _ = Describe("Structure", func() {
-	var structToTest interface{}
+	var structToTest *Custom
 
 	Context("With custom GetApplicationEnvironments implementation", func() {
 		BeforeEach(func() {

@@ -1,8 +1,6 @@
 package tests_test
 
 import (
-	"context"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -21,10 +19,9 @@ var _ = Describe("Structure", func() {
 			}
 		})
 
-		It("Should return the right result", func() {
-			envs, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
-			Expect(err).To(Succeed())
-			Expect(envs).To(BeEmpty())
+		It("Should not implements ApplicationWithEnvironment interface", func() {
+			_, ok := structToTest.(appenv.ApplicationWithEnvironment)
+			Expect(ok).To(BeFalse())
 		})
 	})
 })

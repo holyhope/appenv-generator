@@ -13,9 +13,9 @@ import (
 )
 
 var _ = Describe("Structure", func() {
-	var structToTest interface{}
-
 	Context("With basic typed fields", func() {
+		var structToTest *SimpleTest
+
 		BeforeEach(func() {
 			structToTest = &SimpleTest{
 				SimpleString: "soSimple",
@@ -44,6 +44,8 @@ var _ = Describe("Structure", func() {
 	})
 
 	Context("with pointer fields", func() {
+		var structToTest *SimpleTest2
+
 		Context("With nil value", func() {
 			BeforeEach(func() {
 				structToTest = &SimpleTest2{}

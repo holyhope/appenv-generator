@@ -2,5 +2,5 @@ package tests
 
 type Inherit struct {
 	SimpleTest
-	SimpleTest2
+	*SimpleTest2
 }

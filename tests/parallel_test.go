@@ -12,7 +12,7 @@ import (
 )
 
 var _ = Describe("Structure", func() {
-	var structToTest interface{}
+	var structToTest *Parallel
 
 	Context("With multiple GetApplicationEnvironments taking time", func() {
 		sleep := Sleep100{

@@ -10,7 +10,7 @@ type ApplicationWithEnvironment interface {
 	GetApplicationEnvironments(context.Context) ([]v1.EnvVar, error)
 }
 
-func GetApplicationEnvironments(o interface{}, ctx context.Context) ([]v1.EnvVar, error) {
+func GetApplicationEnvironments(o ApplicationWithEnvironment, ctx context.Context) ([]v1.EnvVar, error) {
 	if o, ok := o.(ApplicationWithEnvironment); ok {
 		return o.GetApplicationEnvironments(ctx)
 	}
@@ -18,7 +18,7 @@ func GetApplicationEnvironments(o interface{}, ctx context.Context) ([]v1.EnvVar
 	return nil, nil
 }
 
-func MustGetApplicationEnvironments(o interface{}, ctx context.Context) []v1.EnvVar {
+func MustGetApplicationEnvironments(o ApplicationWithEnvironment, ctx context.Context) []v1.EnvVar {
 	if o, ok := o.(ApplicationWithEnvironment); ok {
 		envs, err := o.GetApplicationEnvironments(ctx)
 		if err != nil {

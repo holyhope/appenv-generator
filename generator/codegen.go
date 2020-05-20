@@ -5,6 +5,7 @@ package generator
 
 import (
 	"go/types"
+	"strings"
 
 	"github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
@@ -167,45 +168,45 @@ func (g Generator) GenerateCodeWithField(pkg *loader.Package, variable *jen.Stat
 			}), nil, false, nil
 		}
 
-		// TODO: How to handle embedded structure ?
-		// Get the field name from an other way
-		if field.Name != "" {
-			//embedded := field.Markers.Get(appenvmarkers.EmbeddedEnvironmentVariable)
-			//if embedded != nil {
-			return nil, func(errGroup *jen.Statement, lock *jen.Statement) func(s *jen.Statement) {
-				return func(s *jen.Statement) {
-					if !g.doesFieldImplementsAppEnv(pkg, field) {
-						return
-					}
+		fieldName := field.Name
 
-					localEnvsVariableName := "envs" + field.Name
-
-					statement := jen.List(jen.Id(localEnvsVariableName), jen.Id("err")).Op(":=").Id("o").Dot(field.Name).Dot(methodeName).Call(jen.Id("ctx"))
-
-					appendStatement := variable.Clone().Op("=").Append(
-						variable,
-						jen.Id(localEnvsVariableName).Op("..."),
-					)
-
-					if errGroup != nil {
-						s.Add(jen.Add(errGroup).Dot("Go").Call(jen.Func().Params().Id("error").Block(
-							statement,
-							jen.If(jen.Id("err").Op("!=").Nil()).Block(jen.Return(jen.Id("err"))).Line(),
-							lock.Line(),
-							appendStatement,
-							jen.Line().Return(jen.Nil()),
-						)))
-					} else {
-						s.Add(statement).Line().
-							If(jen.Id("err").Op("!=").Nil()).Block(jen.Return(jen.Nil(), jen.Id("err"))).Line().Line().
-							Add(appendStatement)
-					}
-				}
-			}, true, nil
-			//}
+		if fieldName == "" {
+			fullNameParts := strings.Split(ftype.String(), ".")
+			fieldName = fullNameParts[len(fullNameParts)-1]
 		}
 
-		return nil, nil, false, nil
+		//embedded := field.Markers.Get(appenvmarkers.EmbeddedEnvironmentVariable)
+		//if embedded != nil {
+		return nil, func(errGroup *jen.Statement, lock *jen.Statement) func(s *jen.Statement) {
+			return func(s *jen.Statement) {
+				if !g.doesFieldImplementsAppEnv(pkg, field) {
+					return
+				}
+
+				localEnvsVariableName := "envs" + fieldName
+
+				statement := jen.List(jen.Id(localEnvsVariableName), jen.Id("err")).Op(":=").Id("o").Dot(fieldName).Dot(methodeName).Call(jen.Id("ctx"))
+
+				appendStatement := variable.Clone().Op("=").Append(
+					variable,
+					jen.Id(localEnvsVariableName).Op("..."),
+				)
+
+				if errGroup != nil {
+					s.Add(jen.Add(errGroup).Dot("Go").Call(jen.Func().Params().Id("error").Block(
+						statement,
+						jen.If(jen.Id("err").Op("!=").Nil()).Block(jen.Return(jen.Id("err"))).Line(),
+						lock.Line(),
+						appendStatement,
+						jen.Line().Return(jen.Nil()),
+					)))
+				} else {
+					s.Add(statement).Line().
+						If(jen.Id("err").Op("!=").Nil()).Block(jen.Return(jen.Nil(), jen.Id("err"))).Line().Line().
+						Add(appendStatement)
+				}
+			}
+		}, true, nil
 	default:
 		envVarName := field.Markers.Get(appenvmarkers.EnvironmentVariableName)
 		if envVarName != nil {

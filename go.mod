@@ -12,10 +12,10 @@ require (
 	github.com/onsi/gomega v1.8.1
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.0.0
-	golang.org/x/net v0.0.0-20200513185701-a91f0712d120 // indirect
-	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	golang.org/x/sys v0.0.0-20200515095857-1151b9dac4a9 // indirect
-	golang.org/x/tools v0.0.0-20200515220128-d3bf790afa53 // indirect
+	golang.org/x/net v0.0.0-20200520004742-59133d7f0dd7 // indirect
+	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
+	golang.org/x/sys v0.0.0-20200519105757-fe76b779f299 // indirect
+	golang.org/x/tools v0.0.0-20200519205726-57a9e4404bf7 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 	k8s.io/api v0.18.2
