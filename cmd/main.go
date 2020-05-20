@@ -167,8 +167,6 @@ func main() {
 		fmt.Fprintf(cmd.OutOrStderr(), "run `%[1]s %[2]s -w` to see all available markers, or `%[1]s %[2]s -h` for usage\n", cmd.CalledAs(), strings.Join(os.Args[1:], " "))
 		os.Exit(1)
 	}
-
-	fmt.Println("Done")
 }
 
 // printMarkerDocs prints out marker help for the given generators specified in

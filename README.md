@@ -31,13 +31,15 @@ make build BINARY='<full-destination-path>'
 3. Use the new `GetApplicationEnvironments()` method in the controller.
 
    ```go
+   // import appenvv1 "github.com/holyhope/appenv-generator/v1"
+
    myDeployment := &appsv1.Deployment{
        Spec: appsv1.DeploymentSpec{
            Template: corev1.PodTemplateSpec{
                 Spec: corev1.PodSpec{
                     Containers: []corev1.Container{
                         {
-                            Env: myapp.GetApplicationEnvironments(context.TODO()),
+                            Env: appenvv1.MustGetApplicationEnvironments(myapp, context.TODO()),
                             // ...
                         },
                     },

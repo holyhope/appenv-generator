@@ -1,9 +1,0 @@
-name: AppEnv Generator
-
-testcases:
-- name: Generate
-  steps:
-  - script: '{{.binary}} appenv paths=./tests/assets output:stdout'
-    assertions:
-    - result.code ShouldEqual 0
-    - result.systemout ShouldNotBeBlank
