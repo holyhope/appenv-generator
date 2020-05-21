@@ -1,8 +1,5 @@
 package generator
 
-// Inpsired by https://banzaicloud.com/blog/generating-go-code/?utm_sq=ge2w5ug1pu
-// and https://github.com/banzaicloud/go-code-generation-demo
-
 import (
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-tools/pkg/markers"

@@ -15,8 +15,6 @@ import (
 // Inpsired by https://banzaicloud.com/blog/generating-go-code/?utm_sq=ge2w5ug1pu
 // and https://github.com/banzaicloud/go-code-generation-demo
 
-// +controllertools:marker:generateHelp
-
 // Generator generates code containing ShallowCopy method implementations.
 type Generator struct {
 	types map[implementsKey]implementsValue

@@ -34,6 +34,10 @@ var (
 	optionsRegistry = &markers.Registry{}
 )
 
+//go:generate go run sigs.k8s.io/controller-tools/cmd/helpgen generate:year=2020 paths=.
+
+// +controllertools:marker:generateHelp
+
 func init() {
 	genName := "appenv"
 	var gen genall.Generator = generator.Generator{}

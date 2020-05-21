@@ -43,6 +43,8 @@ var _ = Describe("Structure", func() {
 				ctx, cancel := context.WithCancel(context.Background())
 
 				go func() {
+					defer GinkgoRecover()
+
 					start := time.Now()
 					_, err := appenv.GetApplicationEnvironments(structToTest, ctx)
 					Expect(err).To(HaveOccurred())
