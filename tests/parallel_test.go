@@ -38,17 +38,17 @@ var _ = Describe("Structure", func() {
 			}
 		})
 
-		Measure("Should be optimized", func(b Benchmarker) {
-			runtime := b.Time("runtime", func() {
-				result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
-				Expect(err).To(Succeed())
-				Expect(result.GetEnvs()).To(HaveLen(ParallelCount))
-				Expect(result.GetEnvsFrom()).To(BeEmpty())
-			})
+		It("Should be optimized", func() {
+			start := time.Now()
+			result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
+			Expect(err).To(Succeed())
+			end := time.Now()
 
-			Expect(runtime).To(BeNumerically("<", sleep.SleepDuration*ParallelCount))
-			b.RecordValue("processing time", runtime.Seconds())
-		}, 100)
+			Expect(result.GetEnvs()).To(HaveLen(ParallelCount))
+			Expect(result.GetEnvsFrom()).To(BeEmpty())
+
+			Expect(end.Sub(start)).To(BeNumerically("<", sleep.SleepDuration*ParallelCount))
+		})
 
 		Describe("Canceling the context", func() {
 			It("Should return the right result", func() {

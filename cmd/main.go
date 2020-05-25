@@ -1,3 +1,19 @@
+// Forked from https://raw.githubusercontent.com/kubernetes-sigs/controller-tools/6eef39898e44319e12d336502302afa1acf414a8/cmd/controller-gen/main.go
+/*
+Copyright 2018 The Kubernetes Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package main
 
 import (
@@ -8,16 +24,40 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	appenv "github.com/holyhope/appenv-generator/generator"
+	"sigs.k8s.io/controller-tools/pkg/crd"
+	"sigs.k8s.io/controller-tools/pkg/deepcopy"
 	"sigs.k8s.io/controller-tools/pkg/genall"
 	"sigs.k8s.io/controller-tools/pkg/genall/help"
 	prettyhelp "sigs.k8s.io/controller-tools/pkg/genall/help/pretty"
 	"sigs.k8s.io/controller-tools/pkg/markers"
+	"sigs.k8s.io/controller-tools/pkg/rbac"
+	"sigs.k8s.io/controller-tools/pkg/schemapatcher"
 	"sigs.k8s.io/controller-tools/pkg/version"
-
-	"github.com/holyhope/appenv-generator/generator"
+	"sigs.k8s.io/controller-tools/pkg/webhook"
 )
 
+//go:generate go run ../helpgen/main.go paths=../../pkg/... generate:headerFile=../../boilerplate.go.txt,year=2019
+
+// Options are specified to controller-gen by turning generators and output rules into
+// markers, and then parsing them using the standard registry logic (without the "+").
+// Each marker and output rule should thus be usable as a marker target.
+
 var (
+	// allGenerators maintains the list of all known generators, giving
+	// them names for use on the command line.
+	// each turns into a command line option,
+	// and has options for output forms.
+	allGenerators = map[string]genall.Generator{
+		"appenv":      appenv.Generator{},
+		"crd":         crd.Generator{},
+		"object":      deepcopy.Generator{},
+		"rbac":        rbac.Generator{},
+		"schemapatch": schemapatcher.Generator{},
+		"webhook":     webhook.Generator{},
+	}
+
 	// allOutputRules defines the list of all known output rules, giving
 	// them names for use on the command line.
 	// Each output rule turns into two command line options:
@@ -34,34 +74,29 @@ var (
 	optionsRegistry = &markers.Registry{}
 )
 
-//go:generate go run sigs.k8s.io/controller-tools/cmd/helpgen generate:year=2020 paths=.
-
-// +controllertools:marker:generateHelp
-
 func init() {
-	genName := "appenv"
-	var gen genall.Generator = generator.Generator{}
-
-	// make the generator options marker itself
-	defn := markers.Must(markers.MakeDefinition(genName, markers.DescribesPackage, gen))
-	if err := optionsRegistry.Register(defn); err != nil {
-		panic(err)
-	}
-	if helpGiver, hasHelp := gen.(genall.HasHelp); hasHelp {
-		if help := helpGiver.Help(); help != nil {
-			optionsRegistry.AddHelp(defn, help)
-		}
-	}
-
-	// make per-generation output rule markers
-	for ruleName, rule := range allOutputRules {
-		ruleMarker := markers.Must(markers.MakeDefinition(fmt.Sprintf("output:%s:%s", genName, ruleName), markers.DescribesPackage, rule))
-		if err := optionsRegistry.Register(ruleMarker); err != nil {
+	for genName, gen := range allGenerators {
+		// make the generator options marker itself
+		defn := markers.Must(markers.MakeDefinition(genName, markers.DescribesPackage, gen))
+		if err := optionsRegistry.Register(defn); err != nil {
 			panic(err)
 		}
-		if helpGiver, hasHelp := rule.(genall.HasHelp); hasHelp {
+		if helpGiver, hasHelp := gen.(genall.HasHelp); hasHelp {
 			if help := helpGiver.Help(); help != nil {
-				optionsRegistry.AddHelp(ruleMarker, help)
+				optionsRegistry.AddHelp(defn, help)
+			}
+		}
+
+		// make per-generation output rule markers
+		for ruleName, rule := range allOutputRules {
+			ruleMarker := markers.Must(markers.MakeDefinition(fmt.Sprintf("output:%s:%s", genName, ruleName), markers.DescribesPackage, rule))
+			if err := optionsRegistry.Register(ruleMarker); err != nil {
+				panic(err)
+			}
+			if helpGiver, hasHelp := rule.(genall.HasHelp); hasHelp {
+				if help := helpGiver.Help(); help != nil {
+					optionsRegistry.AddHelp(ruleMarker, help)
+				}
 			}
 		}
 	}
@@ -96,18 +131,22 @@ func main() {
 	showVersion := false
 
 	cmd := &cobra.Command{
-		Use:   "appenv",
+		Use:   "controller-gen",
 		Short: "Generate Kubernetes API extension resources and code.",
 		Long:  "Generate Kubernetes API extension resources and code.",
 		Example: `	# Generate RBAC manifests and crds for all types under apis/,
 	# outputting crds to /tmp/crds and everything else to stdout
 	controller-gen rbac:roleName=<role name> crd paths=./apis/... output:crd:dir=/tmp/crds output:stdout
+
 	# Generate deepcopy/runtime.Object implementations for a particular file
 	controller-gen object paths=./apis/v1beta1/some_types.go
+
 	# Generate OpenAPI v3 schemas for API packages and merge them into existing CRD manifests
 	controller-gen schemapatch:manifests=./manifests output:dir=./manifests paths=./pkg/apis/... 
+
 	# Run all the generators for a given project
 	controller-gen paths=./apis/...
+
 	# Explain the markers for generating CRDs, and their arguments
 	controller-gen crd -ww
 `,
