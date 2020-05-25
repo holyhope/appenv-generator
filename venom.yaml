@@ -3,12 +3,11 @@ name: AppEnv Generator
 testcases:
 - name: Generate
   steps:
-  - script: rm -f ./tests/zz_generated.appenv.go
   - script: '{{.binary}} appenv paths=./tests output:stdout'
     assertions:
     - result.code ShouldEqual 0
     - result.systemout ShouldNotBeBlank
-  - script: '{{.binary}} appenv paths=./tests'
+  - script: '{{.binary}} appenv paths=./tests object:headerFile=./tests/header.txt'
     assertions:
     - result.code ShouldEqual 0
     - result.systemout ShouldBeBlank

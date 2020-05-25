@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"go/ast"
 	"go/format"
+	"strings"
 	"sync"
 
 	"github.com/dave/jennifer/jen"
@@ -18,6 +19,10 @@ import (
 
 // Generator generates code containing ShallowCopy method implementations.
 type Generator struct {
+	// HeaderFile specifies the header text (e.g. license) to prepend to generated files.
+	HeaderFile string `marker:",optional"`
+	// Year specifies the year to substitute for " YEAR" in the header file.
+	Year string `marker:",optional"`
 }
 
 func (g Generator) Generate(ctx *genall.GenerationContext) error {
@@ -80,9 +85,22 @@ func (g Generator) Generate(ctx *genall.GenerationContext) error {
 				return nil
 			}
 
-			writeOut(ctx, root, outContents)
+			g.writeOut(ctx, root, outContents)
 		}
 	}
 
 	return nil
+}
+
+func (g Generator) getHeader(ctx *genall.GenerationContext) (string, error) {
+	if g.HeaderFile == "" {
+		return "", nil
+	}
+
+	headerBytes, err := ctx.ReadFile(g.HeaderFile)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.ReplaceAll(string(headerBytes), " YEAR", " "+g.Year) + "\n\n", nil
 }
