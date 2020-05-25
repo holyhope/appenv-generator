@@ -7,27 +7,55 @@ import (
 	. "github.com/onsi/gomega"
 
 	. "github.com/holyhope/appenv-generator/tests"
-	appenv "github.com/holyhope/appenv-generator/v1"
+	"github.com/holyhope/appenv-generator/v1"
 )
 
 var _ = Describe("Structure", func() {
-	var structToTest *Inherit
-
 	Context("With underlying fields", func() {
-		var children1 *SimpleTest
-		var children2 *SimpleTest2
+		var structToTest *Inherit
+
+		var child1 *SimpleTest
+		var child2 *SimpleTest2
 
 		BeforeEach(func() {
-			children1 = &SimpleTest{
+			child1 = &SimpleTest{
 				SimpleString: "the first value",
 			}
 			value := "a second value"
-			children2 = &SimpleTest2{
+			child2 = &SimpleTest2{
 				SimpleString2: &value,
 			}
 			structToTest = &Inherit{
-				SimpleTest:  *children1,
-				SimpleTest2: children2,
+				SimpleTest:  *child1,
+				SimpleTest2: child2,
+			}
+		})
+
+		It("Should return the merged result", func() {
+			result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
+			Expect(err).To(Succeed())
+
+			result1 := appenv.MustGetApplicationEnvironments(child1, context.TODO())
+			result2 := appenv.MustGetApplicationEnvironments(child2, context.TODO())
+			Expect(result.GetEnvs()).To(ConsistOf(append(result1.GetEnvs(), result2.GetEnvs()...)))
+			Expect(result.GetEnvsFrom()).To(ConsistOf(append(result1.GetEnvsFrom(), result2.GetEnvsFrom()...)))
+		})
+	})
+
+	Context("With underlying fields", func() {
+		var structToTest *InheritFromField
+
+		var child FromField
+
+		BeforeEach(func() {
+			child = FromField{
+				SecretName:     "single-secret",
+				FullSecretName: "full-secrets",
+				ConfigName:     "config",
+				FullConfigName: "config",
+			}
+			structToTest = &InheritFromField{
+				FromField: child,
 			}
 		})
 
@@ -38,9 +66,9 @@ var _ = Describe("Structure", func() {
 			envs := result.GetEnvs()
 			Expect(envs).ToNot(BeEmpty())
 
-			result1, _ := appenv.GetApplicationEnvironments(children1, context.TODO())
-			result2, _ := appenv.GetApplicationEnvironments(children2, context.TODO())
-			Expect(envs).Should(ConsistOf(append(result1.GetEnvs(), result2.GetEnvs()...)))
+			childResult := appenv.MustGetApplicationEnvironments(&child, context.TODO())
+			Expect(result.GetEnvs()).To(ConsistOf(childResult.GetEnvs()))
+			Expect(result.GetEnvsFrom()).To(ConsistOf(childResult.GetEnvsFrom()))
 		})
 	})
 })

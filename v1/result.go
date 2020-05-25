@@ -62,8 +62,8 @@ func (r *result) Add(_ context.Context, res appenv.Result) error {
 		return appenv.NewVersionError(res)
 	}
 
-	r.envs = append(r.envs, resultV1.GetEnvs()...)
-	r.envsFrom = append(r.envsFrom, resultV1.GetEnvsFrom()...)
+	r.AddEnvs(resultV1.GetEnvs()...)
+	r.AddEnvsFrom(resultV1.GetEnvsFrom()...)
 
 	return nil
 }

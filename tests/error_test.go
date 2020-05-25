@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	. "github.com/holyhope/appenv-generator/tests"
-	appenv "github.com/holyhope/appenv-generator/v1"
+	"github.com/holyhope/appenv-generator/v1"
 )
 
 var _ = Describe("Structure", func() {

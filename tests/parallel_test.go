@@ -2,6 +2,7 @@ package tests_test
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -10,14 +11,14 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	. "github.com/holyhope/appenv-generator/tests"
-	appenv "github.com/holyhope/appenv-generator/v1"
+	"github.com/holyhope/appenv-generator/v1"
 )
 
 var _ = Describe("Structure", func() {
 	var structToTest *Parallel
 
 	Context("With multiple GetApplicationEnvironments taking time", func() {
-		sleep := Sleep100{
+		sleep := Sleep{
 			SleepDuration: time.Millisecond * 200,
 			Values: []v1.EnvVar{
 				{
@@ -29,23 +30,25 @@ var _ = Describe("Structure", func() {
 
 		BeforeEach(func() {
 			structToTest = &Parallel{
-				FirstSleep:  sleep,
-				SecondSleep: sleep,
-				ThirdSleep:  sleep,
-				FourthSleep: sleep,
-				FifthSleep:  sleep,
+				First:  sleep,
+				Second: sleep,
+				Third:  sleep,
+				Fourth: sleep,
+				Fifth:  sleep,
 			}
 		})
 
-		It("Should be parallelized", func() {
-			start := time.Now()
-			result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
-			Expect(err).To(Succeed())
-			end := time.Now()
+		Measure("Should be optimized", func(b Benchmarker) {
+			runtime := b.Time("runtime", func() {
+				result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
+				Expect(err).To(Succeed())
+				Expect(result.GetEnvs()).To(HaveLen(ParallelCount))
+				Expect(result.GetEnvsFrom()).To(BeEmpty())
+			})
 
-			Expect(result.GetEnvs()).To(HaveLen(ParallelCount))
-			Expect(end.Sub(start)).Should(BeNumerically("<", sleep.SleepDuration*ParallelCount))
-		})
+			Expect(runtime).To(BeNumerically("<", sleep.SleepDuration*ParallelCount))
+			b.RecordValue("processing time", runtime.Seconds())
+		}, 100)
 
 		Describe("Canceling the context", func() {
 			It("Should return the right result", func() {
@@ -59,10 +62,34 @@ var _ = Describe("Structure", func() {
 					Expect(err).To(HaveOccurred())
 
 					end := time.Now()
-					Expect(end.Sub(start)).Should(BeNumerically("<", sleep.SleepDuration))
+					Expect(end.Sub(start)).To(BeNumerically("<", sleep.SleepDuration))
 				}()
 
 				cancel()
+			})
+		})
+
+		Describe("Returning 1 error", func() {
+			var structToTest *ParallelWithError
+
+			BeforeEach(func() {
+				once := sync.Once{}
+				structToTest = &ParallelWithError{
+					First:  ErrorOnce{Once: &once},
+					Second: ErrorOnce{Once: &once},
+					Third:  ErrorOnce{Once: &once},
+					Fourth: ErrorOnce{Once: &once},
+					Fifth:  ErrorOnce{Once: &once},
+				}
+			})
+
+			It("Should stop other calls", func() {
+				start := time.Now()
+				_, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
+				Expect(err).To(HaveOccurred())
+
+				end := time.Now()
+				Expect(end.Sub(start)).To(BeNumerically("<", time.Millisecond*500))
 			})
 		})
 	})

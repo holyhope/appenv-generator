@@ -142,8 +142,94 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 	case *types.Basic:
 		envVarName := field.Markers.Get(appenvmarkers.EnvironmentVariableName)
 		if envVarName != nil {
-			value := jen.Empty()
+			fromKind := field.Markers.Get(appenvmarkers.FromKindEnvironmentVariable)
+			if fromKind != nil {
+				if ftyped.Kind() != types.String {
+					if isPointer {
+						return nil, nil, nil, false, errors.Errorf("expected type *string, not *%s", ftyped.Name())
+					}
 
+					return nil, nil, nil, false, errors.Errorf("expected type string, not %s", ftyped.Name())
+				}
+
+				fromField := field.Markers.Get(appenvmarkers.FromFieldEnvironmentVariable)
+				if fromField == nil {
+					return nil, nil, nil, false, errors.Errorf("marker %s not found", appenvmarkers.FromFieldEnvironmentVariable)
+				}
+
+				var values jen.Code
+				switch fromKind {
+				case "secret":
+					if isPointer {
+						// Ensure field is not nil before dereferencing
+						return nil, nil, func(s *jen.Statement) {
+							s.
+								If(jen.Id("o").Dot(field.Name).Op("!=").Nil()).
+								Block(resultVariable.Clone().Dot("AddEnvs").Call(
+									jen.Qual("k8s.io/api/core/v1", "EnvVar").Values(jen.Dict{
+										jen.Id("Name"): jen.Lit(envVarName),
+										jen.Id("ValueFrom"): jen.Op("&").Qual("k8s.io/api/core/v1", "EnvVarSource").Values(jen.Dict{
+											jen.Id("SecretKeyRef"): jen.Op("&").Qual("k8s.io/api/core/v1", "SecretKeySelector").Values(jen.Dict{
+												jen.Id("LocalObjectReference"): jen.Qual("k8s.io/api/core/v1", "LocalObjectReference").Values(jen.Dict{
+													jen.Id("Name"): jen.Op("*").Id("o").Dot(field.Name),
+												}),
+												jen.Id("Key"): jen.Lit(fromField),
+											}),
+										}),
+									}),
+								))
+						}, false, nil
+					}
+
+					values = jen.Dict{
+						jen.Id("SecretKeyRef"): jen.Op("&").Qual("k8s.io/api/core/v1", "SecretKeySelector").Values(jen.Dict{
+							jen.Id("LocalObjectReference"): jen.Qual("k8s.io/api/core/v1", "LocalObjectReference").Values(jen.Dict{
+								jen.Id("Name"): jen.Id("o").Dot(field.Name),
+							}),
+							jen.Id("Key"): jen.Lit(fromField),
+						}),
+					}
+				case "configMap":
+					if isPointer {
+						// Ensure field is not nil before dereferencing
+						return nil, nil, func(s *jen.Statement) {
+							s.
+								If(jen.Id("o").Dot(field.Name).Op("!=").Nil()).
+								Block(resultVariable.Clone().Dot("AddEnvs").Call(
+									jen.Qual("k8s.io/api/core/v1", "EnvVar").Values(jen.Dict{
+										jen.Id("Name"): jen.Lit(envVarName),
+										jen.Id("ValueFrom"): jen.Op("&").Qual("k8s.io/api/core/v1", "EnvVarSource").Values(jen.Dict{
+											jen.Id("ConfigMapKeyRef"): jen.Op("&").Qual("k8s.io/api/core/v1", "ConfigMapKeySelector").Values(jen.Dict{
+												jen.Id("LocalObjectReference"): jen.Qual("k8s.io/api/core/v1", "LocalObjectReference").Values(jen.Dict{
+													jen.Id("Name"): jen.Op("*").Id("o").Dot(field.Name),
+												}),
+												jen.Id("Key"): jen.Lit(fromField),
+											}),
+										}),
+									}),
+								))
+						}, false, nil
+					}
+
+					values = jen.Dict{
+						jen.Id("ConfigMapKeyRef"): jen.Op("&").Qual("k8s.io/api/core/v1", "ConfigMapKeySelector").Values(jen.Dict{
+							jen.Id("LocalObjectReference"): jen.Qual("k8s.io/api/core/v1", "LocalObjectReference").Values(jen.Dict{
+								jen.Id("Name"): jen.Id("o").Dot(field.Name),
+							}),
+							jen.Id("Key"): jen.Lit(fromField),
+						}),
+					}
+				default:
+					return nil, nil, nil, false, errors.Errorf("marker %s=%v not supported", appenvmarkers.FromKindEnvironmentVariable, fromKind)
+				}
+
+				return jen.Values(jen.Dict{
+					jen.Id("Name"):      jen.Lit(envVarName),
+					jen.Id("ValueFrom"): jen.Op("&").Qual("k8s.io/api/core/v1", "EnvVarSource").Values(values),
+				}), nil, nil, false, nil
+			}
+
+			value := jen.Empty()
 			if isPointer {
 				// Ensure field is not nil before dereferencing
 				return nil, nil, func(s *jen.Statement) {
@@ -160,43 +246,6 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 
 			switch ftyped.Kind() {
 			case types.String:
-				fromKind := field.Markers.Get(appenvmarkers.FromKindEnvironmentVariable)
-				if fromKind != nil {
-					fromField := field.Markers.Get(appenvmarkers.FromFieldEnvironmentVariable)
-					if fromField == nil {
-						return nil, nil, nil, false, errors.Errorf("marker %s not found", appenvmarkers.FromFieldEnvironmentVariable)
-					}
-
-					var values jen.Code
-					switch fromKind {
-					case "secret":
-						values = jen.Dict{
-							jen.Id("SecretKeyRef"): jen.Qual("k8s.io/api/core/v1", "SecretKeySelector").Values(jen.Dict{
-								jen.Id("LocalObjectReference"): jen.Qual("k8s.io/api/core/v1", "LocalObjectReference").Values(jen.Dict{
-									jen.Id("Name"): jen.Id("o").Dot(field.Name),
-								}),
-								jen.Id("Key"): jen.Lit(fromField),
-							}),
-						}
-					case "configMap":
-						values = jen.Dict{
-							jen.Id("SecretKeyRef"): jen.Qual("k8s.io/api/core/v1", "ConfigMapKeySelector").Values(jen.Dict{
-								jen.Id("LocalObjectReference"): jen.Qual("k8s.io/api/core/v1", "LocalObjectReference").Values(jen.Dict{
-									jen.Id("Name"): jen.Id("o").Dot(field.Name),
-								}),
-								jen.Id("Key"): jen.Lit(fromField),
-							}),
-						}
-					default:
-						return nil, nil, nil, false, errors.Errorf("marker %s=%v not supported", appenvmarkers.FromKindEnvironmentVariable, fromKind)
-					}
-
-					return jen.Values(jen.Dict{
-						jen.Id("Name"):      jen.Lit(envVarName),
-						jen.Id("ValueFrom"): jen.Qual("k8s.io/api/core/v1", "EnvVarSource").Values(values),
-					}), nil, nil, false, nil
-				}
-
 				value.Add(jen.Id("o").Dot(field.Name))
 			default:
 				value.Add(jen.Qual("fmt", "Sprintf").Call(jen.Lit("%v"), jen.Id("o").Dot(field.Name)))
@@ -206,6 +255,70 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 				jen.Id("Name"):  jen.Lit(envVarName),
 				jen.Id("Value"): value,
 			}), nil, nil, false, nil
+		}
+
+		fromKind := field.Markers.Get(appenvmarkers.FromKindEnvironmentVariable)
+		if fromKind != nil {
+			fromField := field.Markers.Get(appenvmarkers.FromFieldEnvironmentVariable)
+			if fromField != nil {
+				return nil, nil, nil, false, errors.Errorf("unexpected marker %s", appenvmarkers.FromFieldEnvironmentVariable)
+			}
+
+			switch fromKind {
+			case "secret":
+				if isPointer {
+					// Ensure field is not nil before dereferencing
+					return nil, nil, func(s *jen.Statement) {
+						s.
+							If(jen.Id("o").Dot(field.Name).Op("!=").Nil()).
+							Block(resultVariable.Clone().Dot("AddEnvsFrom").Call(
+								jen.Qual("k8s.io/api/core/v1", "EnvFromSource").Values(jen.Dict{
+									jen.Id("SecretRef"): jen.Op("&").Qual("k8s.io/api/core/v1", "SecretEnvSource").Values(jen.Dict{
+										jen.Id("LocalObjectReference"): jen.Qual("k8s.io/api/core/v1", "LocalObjectReference").Values(jen.Dict{
+											jen.Id("Name"): jen.Op("*").Id("o").Dot(field.Name),
+										}),
+									}),
+								}),
+							))
+					}, false, nil
+				}
+
+				return nil, jen.Values(jen.Dict{
+					jen.Id("SecretRef"): jen.Op("&").Qual("k8s.io/api/core/v1", "SecretEnvSource").Values(jen.Dict{
+						jen.Id("LocalObjectReference"): jen.Qual("k8s.io/api/core/v1", "LocalObjectReference").Values(jen.Dict{
+							jen.Id("Name"): jen.Id("o").Dot(field.Name),
+						}),
+					}),
+				}), nil, false, nil
+			case "configMap":
+				if isPointer {
+					// Ensure field is not nil before dereferencing
+					return nil, nil, func(s *jen.Statement) {
+						s.
+							If(jen.Id("o").Dot(field.Name).Op("!=").Nil()).
+							Block(resultVariable.Clone().Dot("AddEnvsFrom").Call(
+								jen.Qual("k8s.io/api/core/v1", "EnvFromSource").Values(jen.Dict{
+									jen.Id("ConfigMapRef"): jen.Op("&").Qual("k8s.io/api/core/v1", "ConfigMapEnvSource").Values(jen.Dict{
+										jen.Id("LocalObjectReference"): jen.Qual("k8s.io/api/core/v1", "LocalObjectReference").Values(jen.Dict{
+											jen.Id("Name"): jen.Op("*").Id("o").Dot(field.Name),
+										}),
+									}),
+								}),
+							))
+					}, false, nil
+				}
+
+				return nil, jen.Values(jen.Dict{
+					jen.Id("ConfigMapRef"): jen.Op("&").Qual("k8s.io/api/core/v1", "ConfigMapEnvSource").Values(jen.Dict{
+						jen.Id("LocalObjectReference"): jen.Qual("k8s.io/api/core/v1", "LocalObjectReference").Values(jen.Dict{
+							jen.Id("Name"): jen.Id("o").Dot(field.Name),
+						}),
+					}),
+				}), nil, false, nil
+			default:
+				return nil, nil, nil, false, errors.Errorf("marker %s=%v not supported", appenvmarkers.FromKindEnvironmentVariable, fromKind)
+			}
+
 		}
 
 		return nil, nil, nil, false, nil

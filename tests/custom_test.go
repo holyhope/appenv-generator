@@ -23,11 +23,11 @@ var _ = Describe("Structure", func() {
 		It("Should return the right result", func() {
 			result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
 			Expect(err).To(Succeed())
-			Expect(result.GetEnvs()).Should(ConsistOf(v1.EnvVar{
+			Expect(result.GetEnvs()).To(ConsistOf(v1.EnvVar{
 				Name:  "custom-key",
 				Value: "custom-value",
 			}))
-			Expect(result.GetEnvsFrom()).Should(BeEmpty())
+			Expect(result.GetEnvsFrom()).To(BeEmpty())
 		})
 	})
 })

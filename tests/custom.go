@@ -17,7 +17,3 @@ func (c *Custom) GetApplicationEnvironments(context.Context) (appenv.Result, err
 		},
 	}, nil), nil
 }
-
-type CustomInherit struct {
-	Custom Custom `json:"custom"`
-}

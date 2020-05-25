@@ -1,17 +1,35 @@
 package tests_test
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
 
 	. "github.com/holyhope/appenv-generator/tests"
-	appenv "github.com/holyhope/appenv-generator/v1"
+	"github.com/holyhope/appenv-generator/v1"
 )
 
 var _ = Describe("Structure", func() {
-	var structToTest interface{}
+	Context("With all field ignored", func() {
+		var structToTest interface{}
 
-	Context("With custom GetApplicationEnvironments implementation", func() {
+		BeforeEach(func() {
+			structToTest = &IgnoreAllField{
+				SimpleString: "soSimple",
+			}
+		})
+
+		It("Should not implements ApplicationWithEnvironment", func() {
+			_, ok := structToTest.(appenv.ApplicationWithEnvironment)
+			Expect(ok).To(BeFalse())
+		})
+	})
+
+	Context("With some field ignored", func() {
+		var structToTest *Ignore
+
 		BeforeEach(func() {
 			structToTest = &Ignore{
 				SimpleString: "soSimple",
@@ -19,9 +37,13 @@ var _ = Describe("Structure", func() {
 			}
 		})
 
-		It("Should not implements ApplicationWithEnvironment interface", func() {
-			_, ok := structToTest.(appenv.ApplicationWithEnvironment)
-			Expect(ok).To(BeFalse())
+		It("Should return right fields", func() {
+			result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result.GetEnvs()).To(ConsistOf(v1.EnvVar{
+				Name:  "SIMPLE_STRING",
+				Value: "soSimple",
+			}))
 		})
 	})
 })

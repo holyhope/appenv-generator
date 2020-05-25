@@ -9,7 +9,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	. "github.com/holyhope/appenv-generator/tests"
-	appenv "github.com/holyhope/appenv-generator/v1"
+	"github.com/holyhope/appenv-generator/v1"
 )
 
 var _ = Describe("Structure", func() {
@@ -27,7 +27,7 @@ var _ = Describe("Structure", func() {
 		It("Should return the right result", func() {
 			result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
 			Expect(err).To(Succeed())
-			Expect(result.GetEnvs()).Should(ConsistOf(v1.EnvVar{
+			Expect(result.GetEnvs()).To(ConsistOf(v1.EnvVar{
 				Name:  "SIMPLE_STRING",
 				Value: "soSimple",
 			}, v1.EnvVar{
@@ -40,6 +40,7 @@ var _ = Describe("Structure", func() {
 				Name:  "SIMPLE_BOOL",
 				Value: "false",
 			}))
+			Expect(result.GetEnvsFrom()).To(BeEmpty())
 		})
 	})
 
@@ -54,7 +55,8 @@ var _ = Describe("Structure", func() {
 			It("Should not return the result", func() {
 				result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
 				Expect(err).To(Succeed())
-				Expect(result.GetEnvs()).Should(BeEmpty())
+				Expect(result.GetEnvs()).To(BeEmpty())
+				Expect(result.GetEnvsFrom()).To(BeEmpty())
 			})
 		})
 
@@ -69,10 +71,11 @@ var _ = Describe("Structure", func() {
 			It("Should return the right result", func() {
 				result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
 				Expect(err).To(Succeed())
-				Expect(result.GetEnvs()).Should(ConsistOf(v1.EnvVar{
+				Expect(result.GetEnvs()).To(ConsistOf(v1.EnvVar{
 					Name:  "SIMPLE_STRING2",
 					Value: "soSimple2",
 				}))
+				Expect(result.GetEnvsFrom()).To(BeEmpty())
 			})
 		})
 	})
