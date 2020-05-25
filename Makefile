@@ -1,6 +1,6 @@
 BINARY ?= ./bin/controller-gen
 
-SOURCE_FILES := $(wildcard ./cmd/controller-gen/*.go) $(wildcard ./*.go) $(wildcard ./markers/*.go) $(wildcard ./v1/*.go) $(wildcard ./generator/*.go) $(wildcard ./generator/codegen/v1/*.go) $(wildcard ./generator/helpers/*.go)
+SOURCE_FILES := $(wildcard ./cmd/controller-gen/*.go) $(wildcard ./*.go) $(wildcard ./markers/*.go) $(wildcard ./v1/*.go) $(wildcard ./generator/*.go) $(wildcard ./generator/codegen/v1/*.go) $(wildcard ./generator/helpers/*.go) go.mod
 TEST_FILES := $(filter-out ./tests/zz_generated.appenv.go, $(wildcard ./tests/*.go))
 
 install:
@@ -8,7 +8,7 @@ install:
 
 build: $(BINARY)
 
-tests: $(BINARY) ./venom.yaml $(TEST_FILES)
+tests: $(BINARY) ./venom.yaml $(SOURCE_FILES) $(TEST_FILES)
 	# https://github.com/ovh/venom/
 	venom run ./venom.yaml --var binary=$(BINARY)
 
