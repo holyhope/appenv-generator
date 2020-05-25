@@ -5,7 +5,8 @@ const (
 )
 
 const (
-	EmbeddedEnvironmentVariable = GeneratorName + ":embedded"
-	EnvironmentVariableName     = GeneratorName + ":key"
-	EnvironmentIgnore           = GeneratorName + ":ignore"
+	FromKindEnvironmentVariable  = GeneratorName + ":from:kind"
+	FromFieldEnvironmentVariable = GeneratorName + ":from:field"
+	EnvironmentVariableName      = GeneratorName + ":key"
+	EnvironmentIgnore            = GeneratorName + ":ignore"
 )

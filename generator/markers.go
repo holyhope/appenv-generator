@@ -8,13 +8,13 @@ import (
 )
 
 var (
-	keyFieldMarker      = markers.Must(markers.MakeDefinition(appenvmarkers.EnvironmentVariableName, markers.DescribesField, ""))
-	ignoreFieldMarker   = markers.Must(markers.MakeDefinition(appenvmarkers.EnvironmentIgnore, markers.DescribesField, true))
-	embeddedFieldMarker = markers.Must(markers.MakeDefinition(appenvmarkers.EmbeddedEnvironmentVariable, markers.DescribesField, true))
+	keyFieldMarker    = markers.Must(markers.MakeDefinition(appenvmarkers.EnvironmentVariableName, markers.DescribesField, ""))
+	ignoreFieldMarker = markers.Must(markers.MakeDefinition(appenvmarkers.EnvironmentIgnore, markers.DescribesField, true))
+	fromFieldMarker   = markers.Must(markers.MakeDefinition(appenvmarkers.FromKindEnvironmentVariable, markers.DescribesField, true))
 )
 
 func (Generator) RegisterMarkers(into *markers.Registry) error {
-	if err := markers.RegisterAll(into, keyFieldMarker, ignoreFieldMarker, embeddedFieldMarker); err != nil {
+	if err := markers.RegisterAll(into, keyFieldMarker, ignoreFieldMarker, fromFieldMarker); err != nil {
 		return errors.Wrap(err, "cannot register markers")
 	}
 

@@ -2,15 +2,13 @@ package appenv
 
 import (
 	"context"
-
-	v1 "k8s.io/api/core/v1"
 )
 
 type ApplicationWithEnvironment interface {
-	GetApplicationEnvironments(context.Context) ([]v1.EnvVar, error)
+	GetApplicationEnvironments(context.Context) (Result, error)
 }
 
-func GetApplicationEnvironments(o ApplicationWithEnvironment, ctx context.Context) ([]v1.EnvVar, error) {
+func GetApplicationEnvironments(o ApplicationWithEnvironment, ctx context.Context) (Result, error) {
 	if o, ok := o.(ApplicationWithEnvironment); ok {
 		return o.GetApplicationEnvironments(ctx)
 	}
@@ -18,15 +16,11 @@ func GetApplicationEnvironments(o ApplicationWithEnvironment, ctx context.Contex
 	return nil, nil
 }
 
-func MustGetApplicationEnvironments(o ApplicationWithEnvironment, ctx context.Context) []v1.EnvVar {
-	if o, ok := o.(ApplicationWithEnvironment); ok {
-		envs, err := o.GetApplicationEnvironments(ctx)
-		if err != nil {
-			panic(err)
-		}
-
-		return envs
+func MustGetApplicationEnvironments(o ApplicationWithEnvironment, ctx context.Context) Result {
+	result, err := GetApplicationEnvironments(o, ctx)
+	if err != nil {
+		panic(err)
 	}
 
-	return nil
+	return result
 }

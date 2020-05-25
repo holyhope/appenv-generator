@@ -25,9 +25,9 @@ var _ = Describe("Structure", func() {
 		})
 
 		It("Should return the right result", func() {
-			envs, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
+			result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
 			Expect(err).To(Succeed())
-			Expect(envs).Should(ConsistOf(v1.EnvVar{
+			Expect(result.GetEnvs()).Should(ConsistOf(v1.EnvVar{
 				Name:  "SIMPLE_STRING",
 				Value: "soSimple",
 			}, v1.EnvVar{
@@ -52,9 +52,9 @@ var _ = Describe("Structure", func() {
 			})
 
 			It("Should not return the result", func() {
-				envs, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
+				result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
 				Expect(err).To(Succeed())
-				Expect(envs).Should(BeEmpty())
+				Expect(result.GetEnvs()).Should(BeEmpty())
 			})
 		})
 
@@ -67,9 +67,9 @@ var _ = Describe("Structure", func() {
 			})
 
 			It("Should return the right result", func() {
-				envs, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
+				result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
 				Expect(err).To(Succeed())
-				Expect(envs).Should(ConsistOf(v1.EnvVar{
+				Expect(result.GetEnvs()).Should(ConsistOf(v1.EnvVar{
 					Name:  "SIMPLE_STRING2",
 					Value: "soSimple2",
 				}))

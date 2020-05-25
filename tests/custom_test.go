@@ -9,7 +9,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	. "github.com/holyhope/appenv-generator/tests"
-	appenv "github.com/holyhope/appenv-generator/v1"
+	"github.com/holyhope/appenv-generator/v1"
 )
 
 var _ = Describe("Structure", func() {
@@ -21,12 +21,13 @@ var _ = Describe("Structure", func() {
 		})
 
 		It("Should return the right result", func() {
-			envs, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
+			result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
 			Expect(err).To(Succeed())
-			Expect(envs).Should(ConsistOf(v1.EnvVar{
+			Expect(result.GetEnvs()).Should(ConsistOf(v1.EnvVar{
 				Name:  "custom-key",
 				Value: "custom-value",
 			}))
+			Expect(result.GetEnvsFrom()).Should(BeEmpty())
 		})
 	})
 })

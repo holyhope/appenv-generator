@@ -25,7 +25,7 @@ make build BINARY='<full-destination-path>'
 2. Run the generator in your project
 
    ```sh
-   ./bin/generator appenv ./apis/...
+   ./bin/generator appenv paths=./apis/...
    ```
 
 3. Use the new `GetApplicationEnvironments()` method in the controller.
@@ -33,15 +33,19 @@ make build BINARY='<full-destination-path>'
    ```go
    // import appenvv1 "github.com/holyhope/appenv-generator/v1"
 
+   result := appenvv1.MustGetApplicationEnvironments(myapp, context.TODO())
+
    myDeployment := &appsv1.Deployment{
        Spec: appsv1.DeploymentSpec{
            Template: corev1.PodTemplateSpec{
                 Spec: corev1.PodSpec{
                     Containers: []corev1.Container{
                         {
-                            Env: appenvv1.MustGetApplicationEnvironments(myapp, context.TODO()),
+                            Env: result.GetEnvs(),
+                            EnvFrom: result.GetEnvsFrom(),
                             // ...
                         },
+                        // ...
                     },
                     // ...
                 },

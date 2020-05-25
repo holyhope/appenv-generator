@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/holyhope/appenv-generator/v1"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -13,11 +14,12 @@ const (
 
 type Sleep100 struct {
 	SleepDuration time.Duration
+	Values        []v1.EnvVar
 }
 
-func (s *Sleep100) GetApplicationEnvironments(context.Context) ([]v1.EnvVar, error) {
+func (s *Sleep100) GetApplicationEnvironments(context.Context) (appenv.Result, error) {
 	time.Sleep(s.SleepDuration)
-	return nil, nil
+	return appenv.NewResult(s.Values, nil), nil
 }
 
 type Parallel struct {

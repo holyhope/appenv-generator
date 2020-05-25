@@ -7,6 +7,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	v1 "k8s.io/api/core/v1"
+
 	. "github.com/holyhope/appenv-generator/tests"
 	appenv "github.com/holyhope/appenv-generator/v1"
 )
@@ -17,6 +19,12 @@ var _ = Describe("Structure", func() {
 	Context("With multiple GetApplicationEnvironments taking time", func() {
 		sleep := Sleep100{
 			SleepDuration: time.Millisecond * 200,
+			Values: []v1.EnvVar{
+				{
+					Name:  "the-key",
+					Value: "the-value",
+				},
+			},
 		}
 
 		BeforeEach(func() {
@@ -31,10 +39,11 @@ var _ = Describe("Structure", func() {
 
 		It("Should be parallelized", func() {
 			start := time.Now()
-			_, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
+			result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
 			Expect(err).To(Succeed())
-
 			end := time.Now()
+
+			Expect(result.GetEnvs()).To(HaveLen(ParallelCount))
 			Expect(end.Sub(start)).Should(BeNumerically("<", sleep.SleepDuration*ParallelCount))
 		})
 

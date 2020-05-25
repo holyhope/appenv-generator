@@ -1,6 +1,6 @@
 BINARY ?= ./bin/generator
 
-SOURCE_FILES := $(wildcard ./cmd/*.go) $(wildcard ./markers/*.go) $(wildcard ./v1/*.go) $(wildcard ./generator/*.go)
+SOURCE_FILES := $(wildcard ./cmd/*.go) $(wildcard ./*.go) $(wildcard ./markers/*.go) $(wildcard ./v1/*.go) $(wildcard ./generator/*.go) $(wildcard ./generator/codegen/v1/*.go) $(wildcard ./generator/helpers/*.go)
 TEST_FILES := $(filter-out ./tests/zz_generated.appenv.go, $(wildcard ./tests/*.go))
 
 install:

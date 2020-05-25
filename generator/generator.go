@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/dave/jennifer/jen"
+	"github.com/holyhope/appenv-generator/generator/codegen/v1"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-tools/pkg/genall"
 	"sigs.k8s.io/controller-tools/pkg/markers"
@@ -17,14 +18,13 @@ import (
 
 // Generator generates code containing ShallowCopy method implementations.
 type Generator struct {
-	types map[implementsKey]implementsValue
 }
 
 func (g Generator) Generate(ctx *genall.GenerationContext) error {
+	codeGen := codegen.NewCodeGen()
+
 	// loop through the loaded packages
 	for _, root := range ctx.Roots {
-		g.types = map[implementsKey]implementsValue{}
-
 		ctx.Checker.Check(root, func(node ast.Node) bool {
 			// ignore interfaces
 			_, isIface := node.(*ast.InterfaceType)
@@ -36,7 +36,7 @@ func (g Generator) Generate(ctx *genall.GenerationContext) error {
 
 		if err := markers.EachType(ctx.Collector, root, func(info *markers.TypeInfo) {
 			if shouldTakeCare(root, info) {
-				result, err := g.GenerateCode(root, info)
+				result, err := codeGen.GenerateCode(root, info)
 				if err != nil {
 					root.AddError(errors.Wrap(err, "cannot generate code"))
 
@@ -57,7 +57,7 @@ func (g Generator) Generate(ctx *genall.GenerationContext) error {
 			code := jen.NewFile(root.Name)
 
 			for typeInfo, statements := range statements {
-				if g.doesTypeImplementsAppEnv(root, typeInfo) {
+				if codeGen.TypeImplementsAppEnv(root, typeInfo) {
 					for _, statement := range statements {
 						code.Do(statement).Line()
 					}

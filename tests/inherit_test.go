@@ -32,13 +32,15 @@ var _ = Describe("Structure", func() {
 		})
 
 		It("Should return the merged result", func() {
-			envs, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
+			result, err := appenv.GetApplicationEnvironments(structToTest, context.TODO())
 			Expect(err).To(Succeed())
+
+			envs := result.GetEnvs()
 			Expect(envs).ToNot(BeEmpty())
 
-			envsSimple1, _ := appenv.GetApplicationEnvironments(children1, context.TODO())
-			envsSimple2, _ := appenv.GetApplicationEnvironments(children2, context.TODO())
-			Expect(envs).Should(ConsistOf(append(envsSimple1, envsSimple2...)))
+			result1, _ := appenv.GetApplicationEnvironments(children1, context.TODO())
+			result2, _ := appenv.GetApplicationEnvironments(children2, context.TODO())
+			Expect(envs).Should(ConsistOf(append(result1.GetEnvs(), result2.GetEnvs()...)))
 		})
 	})
 })
