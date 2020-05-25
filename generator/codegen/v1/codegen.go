@@ -36,7 +36,7 @@ func (g *CodeGen) GenerateCode(pkg *loader.Package, info *markers.TypeInfo) (fun
 	takeTimeCount := 0
 
 	for _, field := range info.Fields {
-		ignore := field.Markers.Get(appenvmarkers.EnvironmentIgnore)
+		ignore := field.Markers.Get(appenvmarkers.Ignore)
 
 		if ignore != nil {
 			continue
@@ -142,7 +142,7 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 	case *types.Basic:
 		envVarName := field.Markers.Get(appenvmarkers.EnvironmentVariableName)
 		if envVarName != nil {
-			fromKind := field.Markers.Get(appenvmarkers.FromKindEnvironmentVariable)
+			fromKind := field.Markers.Get(appenvmarkers.FromKind)
 			if fromKind != nil {
 				if ftyped.Kind() != types.String {
 					if isPointer {
@@ -152,9 +152,9 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 					return nil, nil, nil, false, errors.Errorf("expected type string, not %s", ftyped.Name())
 				}
 
-				fromField := field.Markers.Get(appenvmarkers.FromFieldEnvironmentVariable)
+				fromField := field.Markers.Get(appenvmarkers.FromFieldName)
 				if fromField == nil {
-					return nil, nil, nil, false, errors.Errorf("marker %s not found", appenvmarkers.FromFieldEnvironmentVariable)
+					return nil, nil, nil, false, errors.Errorf("marker %s not found", appenvmarkers.FromFieldName)
 				}
 
 				var values jen.Code
@@ -220,7 +220,7 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 						}),
 					}
 				default:
-					return nil, nil, nil, false, errors.Errorf("marker %s=%v not supported", appenvmarkers.FromKindEnvironmentVariable, fromKind)
+					return nil, nil, nil, false, errors.Errorf("marker %s=%v not supported", appenvmarkers.FromKind, fromKind)
 				}
 
 				return jen.Values(jen.Dict{
@@ -257,11 +257,11 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 			}), nil, nil, false, nil
 		}
 
-		fromKind := field.Markers.Get(appenvmarkers.FromKindEnvironmentVariable)
+		fromKind := field.Markers.Get(appenvmarkers.FromKind)
 		if fromKind != nil {
-			fromField := field.Markers.Get(appenvmarkers.FromFieldEnvironmentVariable)
+			fromField := field.Markers.Get(appenvmarkers.FromFieldName)
 			if fromField != nil {
-				return nil, nil, nil, false, errors.Errorf("unexpected marker %s", appenvmarkers.FromFieldEnvironmentVariable)
+				return nil, nil, nil, false, errors.Errorf("unexpected marker %s", appenvmarkers.FromFieldName)
 			}
 
 			switch fromKind {
@@ -316,7 +316,7 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 					}),
 				}), nil, false, nil
 			default:
-				return nil, nil, nil, false, errors.Errorf("marker %s=%v not supported", appenvmarkers.FromKindEnvironmentVariable, fromKind)
+				return nil, nil, nil, false, errors.Errorf("marker %s=%v not supported", appenvmarkers.FromKind, fromKind)
 			}
 
 		}

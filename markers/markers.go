@@ -5,8 +5,8 @@ const (
 )
 
 const (
-	FromKindEnvironmentVariable  = GeneratorName + ":from:kind"
-	FromFieldEnvironmentVariable = GeneratorName + ":from:field"
-	EnvironmentVariableName      = GeneratorName + ":key"
-	EnvironmentIgnore            = GeneratorName + ":ignore"
+	FromKind                = GeneratorName + ":from:kind"
+	FromFieldName           = GeneratorName + ":from:field"
+	EnvironmentVariableName = GeneratorName + ":key"
+	Ignore                  = GeneratorName + ":ignore"
 )

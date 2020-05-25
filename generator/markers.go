@@ -9,9 +9,9 @@ import (
 
 var (
 	keyFieldMarker    = markers.Must(markers.MakeDefinition(appenvmarkers.EnvironmentVariableName, markers.DescribesField, ""))
-	ignoreFieldMarker = markers.Must(markers.MakeDefinition(appenvmarkers.EnvironmentIgnore, markers.DescribesField, true))
-	fromKindMarker    = markers.Must(markers.MakeDefinition(appenvmarkers.FromKindEnvironmentVariable, markers.DescribesField, ""))
-	fromFieldMarker   = markers.Must(markers.MakeDefinition(appenvmarkers.FromFieldEnvironmentVariable, markers.DescribesField, ""))
+	ignoreFieldMarker = markers.Must(markers.MakeDefinition(appenvmarkers.Ignore, markers.DescribesField, true))
+	fromKindMarker    = markers.Must(markers.MakeDefinition(appenvmarkers.FromKind, markers.DescribesField, ""))
+	fromFieldMarker   = markers.Must(markers.MakeDefinition(appenvmarkers.FromFieldName, markers.DescribesField, ""))
 )
 
 func (Generator) RegisterMarkers(into *markers.Registry) error {
