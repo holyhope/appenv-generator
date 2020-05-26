@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"go/ast"
 	"go/format"
+	"os"
+	"path"
 	"strings"
 	"sync"
 
@@ -61,12 +63,31 @@ func (g Generator) Generate(ctx *genall.GenerationContext) error {
 		if len(statements) > 0 {
 			code := jen.NewFile(root.Name)
 
+			removeFile := true
+
 			for typeInfo, statements := range statements {
 				if codeGen.TypeImplementsAppEnv(root, typeInfo) {
 					for _, statement := range statements {
 						code.Do(statement).Line()
+						removeFile = false
 					}
 				}
+			}
+
+			if removeFile {
+				if len(root.GoFiles) == 0 {
+					root.AddError(errors.New("cannot determine file to remove"))
+
+					return nil
+				}
+				base := path.Dir(root.GoFiles[0])
+				fullPath := path.Join(base, outputFile)
+				err := os.Remove(fullPath)
+				if err != nil && !os.IsNotExist(err) {
+					root.AddError(errors.Wrap(err, "cannot remove empty file"))
+				}
+
+				continue
 			}
 
 			var b bytes.Buffer

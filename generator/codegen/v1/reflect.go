@@ -50,6 +50,10 @@ func (g *CodeGen) setTypeImplementsAppEnv(pkg *loader.Package, info *markers.Typ
 func (g *CodeGen) TypeImplementsAppEnv(pkg *loader.Package, info *markers.TypeInfo) bool {
 	value, ok := g.types[g.getKeyForType(pkg, info)]
 	if !ok {
+		if value.Marker == nil {
+			return false
+		}
+
 		return helpers.HasGetApplicationEnvironmentsMethod(pkg, pkg.TypesInfo.TypeOf(value.Marker.RawSpec.Type))
 	}
 
