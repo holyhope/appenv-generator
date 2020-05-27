@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/holyhope/appenv-generator/v1"
+	"github.com/holyhope/appenv-generator/v2"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -22,7 +22,7 @@ type Sleep struct {
 func (s *Sleep) GetApplicationEnvironments(ctx context.Context) (appenv.Result, error) {
 	select {
 	case <-time.After(s.SleepDuration):
-		return appenv.NewResult(s.Values, nil), nil
+		return appenv.NewResult(s.Values, nil, nil, nil), nil
 	case <-ctx.Done():
 		return nil, context.Canceled
 	}

@@ -31,9 +31,9 @@ make build BINARY='<full-destination-path>'
 3. Use the new `GetApplicationEnvironments()` method in the controller.
 
    ```go
-   // import appenvv1 "github.com/holyhope/appenv-generator/v1"
+   // import appenv "github.com/holyhope/appenv-generator"
 
-   result := appenvv1.MustGetApplicationEnvironments(myapp, context.TODO())
+   result := appenv.MustGetApplicationEnvironments(myapp, context.TODO())
 
    myDeployment := &appsv1.Deployment{
        Spec: appsv1.DeploymentSpec{

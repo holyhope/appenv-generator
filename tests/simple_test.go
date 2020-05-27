@@ -9,7 +9,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	. "github.com/holyhope/appenv-generator/tests"
-	"github.com/holyhope/appenv-generator/v1"
+	"github.com/holyhope/appenv-generator/v2"
 )
 
 var _ = Describe("Structure", func() {
@@ -41,6 +41,8 @@ var _ = Describe("Structure", func() {
 				Value: "false",
 			}))
 			Expect(result.GetEnvsFrom()).To(BeEmpty())
+			Expect(result.GetVolumes()).To(BeEmpty())
+			Expect(result.GetVolumesMount()).To(BeEmpty())
 		})
 	})
 
@@ -57,6 +59,8 @@ var _ = Describe("Structure", func() {
 				Expect(err).To(Succeed())
 				Expect(result.GetEnvs()).To(BeEmpty())
 				Expect(result.GetEnvsFrom()).To(BeEmpty())
+				Expect(result.GetVolumes()).To(BeEmpty())
+				Expect(result.GetVolumesMount()).To(BeEmpty())
 			})
 		})
 
@@ -76,6 +80,8 @@ var _ = Describe("Structure", func() {
 					Value: "soSimple2",
 				}))
 				Expect(result.GetEnvsFrom()).To(BeEmpty())
+				Expect(result.GetVolumes()).To(BeEmpty())
+				Expect(result.GetVolumesMount()).To(BeEmpty())
 			})
 		})
 	})

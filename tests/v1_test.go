@@ -13,11 +13,11 @@ import (
 )
 
 var _ = Describe("Structure", func() {
-	var structToTest *Custom
+	var structToTest *WithVersion1
 
 	Context("With custom GetApplicationEnvironments implementation", func() {
 		BeforeEach(func() {
-			structToTest = &Custom{}
+			structToTest = &WithVersion1{}
 		})
 
 		It("Should return the right result", func() {

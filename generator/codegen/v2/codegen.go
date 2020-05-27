@@ -30,12 +30,18 @@ func NewCodeGen() *CodeGen {
 	}
 }
 
+const (
+	argPosEnvs         = 0
+	argPosEnvsFrom     = 1
+	argPosVolumes      = 2
+	argPosVolumesMount = 3
+)
+
 func (g *CodeGen) GenerateCode(pkg *loader.Package, info *markers.TypeInfo) (func(*jen.Statement), error) {
 	const resultVariableName = "result"
 	const errorVariableName = "err"
 
-	staticEnvsStatements := []jen.Code{}
-	staticEnvsFromStatements := []jen.Code{}
+	initStatements := [4][]jen.Code{}
 	statementstoAppend := []func(*jen.Statement){}
 	takeTimeCount := 0
 
@@ -46,7 +52,7 @@ func (g *CodeGen) GenerateCode(pkg *loader.Package, info *markers.TypeInfo) (fun
 			continue
 		}
 
-		staticEnvsStatement, staticEnvsFromStatement, postStatement, takeTime, err := g.GenerateCodeWithField(pkg, jen.Id(resultVariableName), jen.Id(errorVariableName), field)
+		statements, postStatement, takeTime, err := g.GenerateCodeWithField(pkg, jen.Id(resultVariableName), jen.Id(errorVariableName), field)
 		if err != nil {
 			return nil, errors.Wrapf(err, "field %s", field.Name)
 		}
@@ -55,30 +61,40 @@ func (g *CodeGen) GenerateCode(pkg *loader.Package, info *markers.TypeInfo) (fun
 			takeTimeCount++
 		}
 
-		if staticEnvsStatement != nil {
-			staticEnvsStatements = append(staticEnvsStatements, staticEnvsStatement)
+		for i, statements := range statements {
+			initStatements[i] = append(initStatements[i], statements...)
 		}
-		if staticEnvsFromStatement != nil {
-			staticEnvsFromStatements = append(staticEnvsFromStatements, staticEnvsFromStatement)
-		}
+
 		if postStatement != nil {
 			statementstoAppend = append(statementstoAppend, postStatement)
 		}
 	}
 
-	if len(statementstoAppend) == 0 && len(staticEnvsStatements) == 0 && len(staticEnvsFromStatements) == 0 {
-		g.setTypeImplementsAppEnv(pkg, info, doesNotImplements)
-		return nil, nil
+	if len(statementstoAppend) == 0 {
+		doesNotImplement := true
+		for _, statements := range initStatements {
+			if len(statements) > 0 {
+				doesNotImplement = false
+				break
+			}
+		}
+		if doesNotImplement {
+			g.setTypeImplementsAppEnv(pkg, info, doesNotImplements)
+			return nil, nil
+		}
 	}
 
 	if takeTimeCount == 0 {
 		g.setTypeImplementsAppEnv(pkg, info, doesImplements)
 	} else {
 		g.setTypeImplementsAppEnv(pkg, info, inheritImplementation)
-	}
 
-	if len(staticEnvsStatements) != 0 || len(staticEnvsFromStatements) != 0 {
-		g.setTypeImplementsAppEnv(pkg, info, doesImplements)
+		for _, statements := range initStatements {
+			if len(statements) > 0 {
+				g.setTypeImplementsAppEnv(pkg, info, doesImplements)
+				break
+			}
+		}
 	}
 
 	return func(s *jen.Statement) {
@@ -86,15 +102,24 @@ func (g *CodeGen) GenerateCode(pkg *loader.Package, info *markers.TypeInfo) (fun
 			Params(jen.Id("o").Op("*").Id(info.Name)).
 			Id(helpers.MethodName).
 			Params(jen.Id("ctx").Qual("context", "Context")).
-			Params(jen.Id("finalResult").Qual("github.com/holyhope/appenv-generator/v1", "Result"), jen.Id(errorVariableName).Id("error")).
+			Params(jen.Id("finalResult").Qual("github.com/holyhope/appenv-generator/v2", "Result"), jen.Id(errorVariableName).Id("error")).
 			BlockFunc(func(g *jen.Group) {
 				g.If(jen.Id("o").Op("==").Nil()).Block(jen.Return())
 				g.Line()
 
-				g.Id(resultVariableName).Op(":=").Qual("github.com/holyhope/appenv-generator/v1", "NewResult").Call(
-					jen.Index().Qual(kubernetesCoreV1, "EnvVar").Values(staticEnvsStatements...),
-					jen.Index().Qual(kubernetesCoreV1, "EnvFromSource").Values(staticEnvsFromStatements...),
+				initResult := jen.Qual("github.com/holyhope/appenv-generator/v2", "NewResult").Call(
+					jen.Index().Qual(kubernetesCoreV1, "EnvVar").Values(initStatements[argPosEnvs]...),
+					jen.Index().Qual(kubernetesCoreV1, "EnvFromSource").Values(initStatements[argPosEnvsFrom]...),
+					jen.Index().Qual(kubernetesCoreV1, "Volume").Values(initStatements[argPosVolumes]...),
+					jen.Index().Qual(kubernetesCoreV1, "VolumeMount").Values(initStatements[argPosVolumesMount]...),
 				)
+
+				if len(statementstoAppend) == 0 {
+					g.Return(initResult, jen.Nil())
+					return
+				}
+
+				g.Id(resultVariableName).Op(":=").Add(initResult)
 				g.Id("finalResult").Op("=").Id(resultVariableName)
 				g.Line()
 
@@ -129,11 +154,11 @@ func (g *CodeGen) GenerateCode(pkg *loader.Package, info *markers.TypeInfo) (fun
 	}, nil
 }
 
-func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, errorVariable *jen.Statement, field markers.FieldInfo) (*jen.Statement, *jen.Statement, func(*jen.Statement), bool, error) {
+func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, errorVariable *jen.Statement, field markers.FieldInfo) ([4][]jen.Code, func(*jen.Statement), bool, error) {
 	ftype := pkg.TypesInfo.TypeOf(field.RawField.Type)
 
 	if ftype == types.Typ[types.Invalid] {
-		return nil, nil, nil, false, nil
+		return [4][]jen.Code{nil, nil, nil, nil}, nil, false, nil
 	}
 
 	isPointer := false
@@ -144,21 +169,104 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 
 	switch ftyped := ftype.(type) {
 	case *types.Basic:
+		mountName := field.Markers.Get(appenvmarkers.MountName)
+		if mountName != nil {
+			if ftyped.Kind() != types.String {
+				if isPointer {
+					return [4][]jen.Code{nil, nil, nil, nil}, nil, false, errors.Errorf("expected type *string, not *%s", ftyped.Name())
+				}
+
+				return [4][]jen.Code{nil, nil, nil, nil}, nil, false, errors.Errorf("expected type string, not %s", ftyped.Name())
+			}
+
+			mountPath := field.Markers.Get(appenvmarkers.MountPath)
+			if mountPath == nil {
+				return [4][]jen.Code{nil, nil, nil, nil}, nil, false, errors.Errorf("marker %s not found", appenvmarkers.MountPath)
+			}
+
+			mountKind := field.Markers.Get(appenvmarkers.MountKind)
+			if mountKind == nil {
+				return [4][]jen.Code{nil, nil, nil, nil}, nil, false, errors.Errorf("marker %s not found", appenvmarkers.MountKind)
+			}
+
+			mountItems := field.Markers.Get(appenvmarkers.MountItems)
+
+			var values [4][]jen.Code
+			switch mountKind {
+			case "secret":
+				if isPointer {
+					// Ensure field is not nil before dereferencing
+					return [4][]jen.Code{nil, nil, nil, nil}, func(s *jen.Statement) {
+						s.
+							If(jen.Id("o").Dot(field.Name).Op("!=").Nil()).
+							Block(resultVariable.Clone().Dot("AddEnvs").Call(
+								jen.Qual(kubernetesCoreV1, "EnvVar").Values(jen.Dict{
+									// ...
+								}),
+							))
+					}, false, nil
+				}
+
+				source := jen.Dict{
+					jen.Id("SecretName"): jen.Id("o").Dot(field.Name),
+				}
+				if mountItems != nil {
+					source[jen.Id("Items")] = jen.Index().Qual(kubernetesCoreV1, "KeyToPath").ValuesFunc(func(g *jen.Group) {
+						for key, value := range mountItems.(map[string]string) {
+							g.Values(jen.Dict{
+								jen.Id("Key"):  jen.Lit(key),
+								jen.Id("Path"): jen.Lit(value),
+							})
+						}
+					})
+				}
+
+				envVarName := field.Markers.Get(appenvmarkers.EnvironmentVariableName)
+				if envVarName != nil {
+					values[argPosEnvs] = []jen.Code{
+						jen.Values(jen.Dict{
+							jen.Id("Name"):  jen.Lit(envVarName),
+							jen.Id("Value"): jen.Lit(mountPath),
+						}),
+					}
+				}
+
+				values[argPosVolumes] = []jen.Code{
+					jen.Values(jen.Dict{
+						jen.Id("Name"): jen.Lit(mountName),
+						jen.Id("VolumeSource"): jen.Qual(kubernetesCoreV1, "VolumeSource").Values(jen.Dict{
+							jen.Id("Secret"): jen.Op("&").Qual(kubernetesCoreV1, "SecretVolumeSource").Values(source),
+						}),
+					}),
+				}
+				values[argPosVolumesMount] = []jen.Code{
+					jen.Values(jen.Dict{
+						jen.Id("Name"):      jen.Lit(mountName),
+						jen.Id("MountPath"): jen.Lit(mountPath),
+					}),
+				}
+			default:
+				return [4][]jen.Code{nil, nil, nil, nil}, nil, false, errors.Errorf("marker %s=%v not supported", appenvmarkers.MountKind, mountKind)
+			}
+
+			return values, nil, false, nil
+		}
+
 		envVarName := field.Markers.Get(appenvmarkers.EnvironmentVariableName)
 		if envVarName != nil {
 			fromKind := field.Markers.Get(appenvmarkers.FromKind)
 			if fromKind != nil {
 				if ftyped.Kind() != types.String {
 					if isPointer {
-						return nil, nil, nil, false, errors.Errorf("expected type *string, not *%s", ftyped.Name())
+						return [4][]jen.Code{nil, nil, nil, nil}, nil, false, errors.Errorf("expected type *string, not *%s", ftyped.Name())
 					}
 
-					return nil, nil, nil, false, errors.Errorf("expected type string, not %s", ftyped.Name())
+					return [4][]jen.Code{nil, nil, nil, nil}, nil, false, errors.Errorf("expected type string, not %s", ftyped.Name())
 				}
 
 				fromField := field.Markers.Get(appenvmarkers.FromFieldName)
 				if fromField == nil {
-					return nil, nil, nil, false, errors.Errorf("marker %s not found", appenvmarkers.FromFieldName)
+					return [4][]jen.Code{nil, nil, nil, nil}, nil, false, errors.Errorf("marker %s not found", appenvmarkers.FromFieldName)
 				}
 
 				var values jen.Code
@@ -166,7 +274,7 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 				case "secret":
 					if isPointer {
 						// Ensure field is not nil before dereferencing
-						return nil, nil, func(s *jen.Statement) {
+						return [4][]jen.Code{nil, nil, nil, nil}, func(s *jen.Statement) {
 							s.
 								If(jen.Id("o").Dot(field.Name).Op("!=").Nil()).
 								Block(resultVariable.Clone().Dot("AddEnvs").Call(
@@ -196,7 +304,7 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 				case "configMap":
 					if isPointer {
 						// Ensure field is not nil before dereferencing
-						return nil, nil, func(s *jen.Statement) {
+						return [4][]jen.Code{nil, nil, nil, nil}, func(s *jen.Statement) {
 							s.
 								If(jen.Id("o").Dot(field.Name).Op("!=").Nil()).
 								Block(resultVariable.Clone().Dot("AddEnvs").Call(
@@ -224,19 +332,19 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 						}),
 					}
 				default:
-					return nil, nil, nil, false, errors.Errorf("marker %s=%v not supported", appenvmarkers.FromKind, fromKind)
+					return [4][]jen.Code{nil, nil, nil, nil}, nil, false, errors.Errorf("marker %s=%v not supported", appenvmarkers.FromKind, fromKind)
 				}
 
-				return jen.Values(jen.Dict{
+				return [4][]jen.Code{{jen.Values(jen.Dict{
 					jen.Id("Name"):      jen.Lit(envVarName),
 					jen.Id("ValueFrom"): jen.Op("&").Qual(kubernetesCoreV1, "EnvVarSource").Values(values),
-				}), nil, nil, false, nil
+				})}, nil, nil, nil}, nil, false, nil
 			}
 
 			value := jen.Empty()
 			if isPointer {
 				// Ensure field is not nil before dereferencing
-				return nil, nil, func(s *jen.Statement) {
+				return [4][]jen.Code{nil, nil, nil, nil}, func(s *jen.Statement) {
 					s.
 						If(jen.Id("o").Dot(field.Name).Op("!=").Nil()).
 						Block(resultVariable.Clone().Dot("AddEnvs").Call(
@@ -255,24 +363,24 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 				value.Add(jen.Qual("fmt", "Sprintf").Call(jen.Lit("%v"), jen.Id("o").Dot(field.Name)))
 			}
 
-			return jen.Values(jen.Dict{
+			return [4][]jen.Code{{jen.Values(jen.Dict{
 				jen.Id("Name"):  jen.Lit(envVarName),
 				jen.Id("Value"): value,
-			}), nil, nil, false, nil
+			})}, nil, nil, nil}, nil, false, nil
 		}
 
 		fromKind := field.Markers.Get(appenvmarkers.FromKind)
 		if fromKind != nil {
 			fromField := field.Markers.Get(appenvmarkers.FromFieldName)
 			if fromField != nil {
-				return nil, nil, nil, false, errors.Errorf("unexpected marker %s", appenvmarkers.FromFieldName)
+				return [4][]jen.Code{nil, nil, nil, nil}, nil, false, errors.Errorf("unexpected marker %s", appenvmarkers.FromFieldName)
 			}
 
 			switch fromKind {
 			case "secret":
 				if isPointer {
 					// Ensure field is not nil before dereferencing
-					return nil, nil, func(s *jen.Statement) {
+					return [4][]jen.Code{nil, nil, nil, nil}, func(s *jen.Statement) {
 						s.
 							If(jen.Id("o").Dot(field.Name).Op("!=").Nil()).
 							Block(resultVariable.Clone().Dot("AddEnvsFrom").Call(
@@ -287,17 +395,17 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 					}, false, nil
 				}
 
-				return nil, jen.Values(jen.Dict{
+				return [4][]jen.Code{nil, {jen.Values(jen.Dict{
 					jen.Id("SecretRef"): jen.Op("&").Qual(kubernetesCoreV1, "SecretEnvSource").Values(jen.Dict{
 						jen.Id("LocalObjectReference"): jen.Qual(kubernetesCoreV1, "LocalObjectReference").Values(jen.Dict{
 							jen.Id("Name"): jen.Id("o").Dot(field.Name),
 						}),
 					}),
-				}), nil, false, nil
+				})}, nil, nil}, nil, false, nil
 			case "configMap":
 				if isPointer {
 					// Ensure field is not nil before dereferencing
-					return nil, nil, func(s *jen.Statement) {
+					return [4][]jen.Code{nil, nil, nil, nil}, func(s *jen.Statement) {
 						s.
 							If(jen.Id("o").Dot(field.Name).Op("!=").Nil()).
 							Block(resultVariable.Clone().Dot("AddEnvsFrom").Call(
@@ -312,28 +420,28 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 					}, false, nil
 				}
 
-				return nil, jen.Values(jen.Dict{
+				return [4][]jen.Code{nil, {jen.Values(jen.Dict{
 					jen.Id("ConfigMapRef"): jen.Op("&").Qual(kubernetesCoreV1, "ConfigMapEnvSource").Values(jen.Dict{
 						jen.Id("LocalObjectReference"): jen.Qual(kubernetesCoreV1, "LocalObjectReference").Values(jen.Dict{
 							jen.Id("Name"): jen.Id("o").Dot(field.Name),
 						}),
 					}),
-				}), nil, false, nil
+				})}, nil, nil}, nil, false, nil
 			default:
-				return nil, nil, nil, false, errors.Errorf("marker %s=%v not supported", appenvmarkers.FromKind, fromKind)
+				return [4][]jen.Code{nil, nil, nil, nil}, nil, false, errors.Errorf("marker %s=%v not supported", appenvmarkers.FromKind, fromKind)
 			}
 
 		}
 
-		return nil, nil, nil, false, nil
+		return [4][]jen.Code{nil, nil, nil, nil}, nil, false, nil
 
 	case *types.Struct, *types.Interface, *types.Named:
 		envVarName := field.Markers.Get(appenvmarkers.EnvironmentVariableName)
 		if envVarName != nil {
-			return jen.Values(jen.Dict{
+			return [4][]jen.Code{{jen.Values(jen.Dict{
 				jen.Id("Name"):  jen.Lit(envVarName),
 				jen.Id("Value"): jen.Qual("fmt", "Sprintf").Call(jen.Lit("%v"), jen.Id("o").Dot(field.Name)),
-			}), nil, nil, false, nil
+			})}, nil, nil, nil}, nil, false, nil
 		}
 
 		fieldName := field.Name
@@ -345,7 +453,7 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 
 		//embedded := field.Markers.Get(appenvmarkers.EmbeddedEnvironmentVariable)
 		//if embedded != nil {
-		return nil, nil, func(s *jen.Statement) {
+		return [4][]jen.Code{nil, nil, nil, nil}, func(s *jen.Statement) {
 			if !g.FieldImplementsAppEnv(pkg, field) {
 				return
 			}
@@ -369,10 +477,10 @@ func (g *CodeGen) GenerateCodeWithField(pkg *loader.Package, resultVariable, err
 	default:
 		envVarName := field.Markers.Get(appenvmarkers.EnvironmentVariableName)
 		if envVarName != nil {
-			return nil, nil, nil, false, errors.Errorf("type not yet supported: %v", ftyped)
+			return [4][]jen.Code{nil, nil, nil, nil}, nil, false, errors.Errorf("type not yet supported: %v", ftyped)
 		}
 
-		return nil, nil, nil, false, nil
+		return [4][]jen.Code{nil, nil, nil, nil}, nil, false, nil
 		/*
 			case *types.Struct, *ast.InterfaceType:
 				envVarName := field.Markers.Get(appenvmarkers.EnvironmentVariableName)

@@ -11,7 +11,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	. "github.com/holyhope/appenv-generator/tests"
-	"github.com/holyhope/appenv-generator/v1"
+	"github.com/holyhope/appenv-generator/v2"
 )
 
 var _ = Describe("Structure", func() {

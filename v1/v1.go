@@ -2,25 +2,69 @@ package appenv
 
 import (
 	"context"
+	"sync"
+
+	v1 "k8s.io/api/core/v1"
+
+	"github.com/holyhope/appenv-generator"
 )
 
-type ApplicationWithEnvironment interface {
-	GetApplicationEnvironments(context.Context) (Result, error)
+type Result interface {
+	appenv.Result
+
+	GetEnvs() []v1.EnvVar
+	GetEnvsFrom() []v1.EnvFromSource
 }
 
-func GetApplicationEnvironments(o ApplicationWithEnvironment, ctx context.Context) (Result, error) {
-	if o, ok := o.(ApplicationWithEnvironment); ok {
-		return o.GetApplicationEnvironments(ctx)
+func NewResult(envs []v1.EnvVar, envsFrom []v1.EnvFromSource) *result {
+	return &result{
+		envs:     envs,
+		envsFrom: envsFrom,
 	}
-
-	return nil, nil
 }
 
-func MustGetApplicationEnvironments(o ApplicationWithEnvironment, ctx context.Context) Result {
-	result, err := GetApplicationEnvironments(o, ctx)
-	if err != nil {
-		panic(err)
+type result struct {
+	envs     []v1.EnvVar
+	lockEnvs sync.Mutex
+
+	envsFrom     []v1.EnvFromSource
+	lockEnvsFrom sync.Mutex
+}
+
+func (r *result) GetEnvs() []v1.EnvVar {
+	return r.envs
+}
+
+func (r *result) AddEnvs(envs ...v1.EnvVar) {
+	r.lockEnvs.Lock()
+	defer r.lockEnvs.Unlock()
+
+	r.envs = append(r.envs, envs...)
+}
+
+func (r *result) GetEnvsFrom() []v1.EnvFromSource {
+	return r.envsFrom
+}
+
+func (r *result) AddEnvsFrom(envs ...v1.EnvFromSource) {
+	r.lockEnvsFrom.Lock()
+	defer r.lockEnvsFrom.Unlock()
+
+	r.envsFrom = append(r.envsFrom, envs...)
+}
+
+func (r *result) Add(_ context.Context, res appenv.Result) error {
+	if res == nil {
+		return nil
 	}
 
-	return result
+	resultV1, ok := res.(*result)
+	if !ok {
+		return appenv.NewVersionError(res)
+	}
+
+	r.AddEnvs(resultV1.GetEnvs()...)
+	r.AddEnvsFrom(resultV1.GetEnvsFrom()...)
+
+	return nil
 }

@@ -10,10 +10,11 @@ import (
 	"sync"
 
 	"github.com/dave/jennifer/jen"
-	"github.com/holyhope/appenv-generator/generator/codegen/v1"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-tools/pkg/genall"
 	"sigs.k8s.io/controller-tools/pkg/markers"
+
+	"github.com/holyhope/appenv-generator/generator/codegen/v2"
 )
 
 // Inpsired by https://banzaicloud.com/blog/generating-go-code/?utm_sq=ge2w5ug1pu
@@ -45,7 +46,7 @@ func (g Generator) Generate(ctx *genall.GenerationContext) error {
 			if shouldTakeCare(root, info) {
 				result, err := codeGen.GenerateCode(root, info)
 				if err != nil {
-					root.AddError(errors.Wrap(err, "cannot generate code"))
+					root.AddError(errors.Wrapf(err, "cannot generate code for %s.%s", root.PkgPath, info.Name))
 
 					return
 				}

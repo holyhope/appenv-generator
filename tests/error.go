@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/holyhope/appenv-generator/v1"
+	"github.com/holyhope/appenv-generator/v2"
 )
 
 type Error struct{}

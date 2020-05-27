@@ -1,6 +1,6 @@
 BINARY ?= ./bin/controller-gen
 
-SOURCE_FILES := $(wildcard ./cmd/controller-gen/*.go) $(wildcard ./*.go) $(wildcard ./markers/*.go) $(wildcard ./v1/*.go) $(wildcard ./generator/*.go) $(wildcard ./generator/codegen/v1/*.go) $(wildcard ./generator/helpers/*.go) go.mod
+SOURCE_FILES := $(wildcard ./cmd/controller-gen/*.go) $(wildcard ./*.go) $(wildcard ./markers/*.go) $(wildcard ./v1/*.go) $(wildcard ./v2/*.go) $(wildcard ./generator/*.go) $(wildcard ./generator/codegen/v1/*.go) $(wildcard ./generator/codegen/v2/*.go) $(wildcard ./generator/helpers/*.go) go.mod
 TEST_FILES := $(filter-out ./tests/zz_generated.appenv.go, $(wildcard ./tests/*.go))
 
 install:
